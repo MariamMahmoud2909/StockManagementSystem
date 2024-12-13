@@ -1,83 +1,144 @@
-from db_manager import DBManager
 
-def add_product(inventory, product_id, name, price, quantity):
-    new_product = {"name": name, "price": price, "quantity": quantity}
-    return {**inventory, product_id: new_product}
-
-def update_product(inventory, product_id, name=None, price=None, quantity=None):
-    if product_id not in inventory:
-        return inventory
-    product = inventory[product_id]
-    updated_product = {
-        "name": name or product["name"],
-        "price": price if price is not None else product["price"],
-        "quantity": quantity if quantity is not None else product["quantity"]
-    }
-    return {**inventory, product_id: updated_product}
-
-def delete_product(inventory, product_id):
-    return {key: val for key, val in inventory.items() if key != product_id}
-
-def generate_low_stock_report(inventory, threshold):
-    return {k: v for k, v in inventory.items() if v["quantity"] < threshold}
-
-def process_order(inventory, product_id, order_quantity):
-    if product_id not in inventory or inventory[product_id]["quantity"] < order_quantity:
-        return "Insufficient stock", inventory
-    product = inventory[product_id]
-    total_cost = product["price"] * order_quantity
-    updated_inventory = update_product(inventory, product_id, quantity=product["quantity"] - order_quantity)
-    return total_cost, updated_inventory
+from functional_imp import (
+    add_product,
+    update_product,
+    delete_product,
+    check_product_availability,
+    process_order,
+    generate_low_stock_report,
+    calculate_total_inventory_value,
+    calculate_total_sales,
+)
 
 def main():
     inventory = {}
-    db_manager = DBManager("server_name", "database_name", "username", "password")
+    sales_records = []  
+
+    print("STOCK MANAGEMENT SYSTEM")
 
     while True:
-        print("\n1. Add Product")
-        print("2. Update Product")
-        print("3. Delete Product")
-        print("4. Generate Low Stock Report")
-        print("5. Process Order")
-        print("6. Exit")
-        choice = input("Choose an option: ")
+        print("\n1. Product Management")
+        print("2. Order Management")
+        print("3. Inventory Tracking")
+        print("4. Inventory Reports")
+        print("5. Exit")
 
-        if choice == "1":
-            product_id = int(input("Enter Product ID: "))
-            name = input("Enter Product Name: ")
-            price = float(input("Enter Product Price: "))
-            quantity = int(input("Enter Product Quantity: "))
-            inventory = add_product(inventory, product_id, name, price, quantity)
+        choice = int(input("\nChoose an option: "))
 
-        elif choice == "2":
-            product_id = int(input("Enter Product ID: "))
-            name = input("Enter New Name (Leave blank to skip): ")
-            price = input("Enter New Price (Leave blank to skip): ")
-            quantity = input("Enter New Quantity (Leave blank to skip): ")
-            inventory = update_product(inventory, product_id, name or None, float(price) if price else None, int(quantity) if quantity else None)
+        if choice == 1:
+            print("\n1. Add Product")
+            print("2. Update Product")
+            print("3. Delete Product")
 
-        elif choice == "3":
-            product_id = int(input("Enter Product ID: "))
-            inventory = delete_product(inventory, product_id)
+            operation = int(input("\nChoose an option: "))
 
-        elif choice == "4":
+            if operation == 1:
+                name = input("Enter Product Name: ")
+                price = float(input("Enter Product Price: "))
+                quantity = int(input("Enter Product Quantity: "))
+                product_id = len(inventory) + 1  
+                inventory = add_product(inventory, product_id, name, price, quantity)
+                print("Product added successfully!")
+
+            elif operation == 2:
+                product_id = int(input("Enter Product ID: "))
+                name = input("Enter New Name (Leave blank to skip): ")
+                price = input("Enter New Price (Leave blank to skip): ")
+                quantity = input("Enter New Quantity (Leave blank to skip): ")
+                inventory = update_product(
+                    inventory,
+                    product_id,
+                    name=name or None,
+                    price=float(price) if price else None,
+                    quantity=int(quantity) if quantity else None,
+                )
+                print("Product updated successfully!")
+
+            elif operation == 3:
+                product_id = int(input("Enter Product ID: "))
+                inventory = delete_product(inventory, product_id)
+                print("Product deleted successfully!")
+
+            else:
+                print("Invalid choice. Try again.")
+
+        elif choice == 2:
+            print("\n1. Process Order")
+            print("2. Check Product Availability")
+
+            operation = int(input("\nChoose an option: "))
+
+            if operation == 1:
+                order_details = []
+                print("Enter items for the order (Enter -1 to stop):")
+                while True:
+                    product_id = int(input("Enter Product ID: "))
+                    if product_id == -1:
+                        break
+                    order_quantity = int(input("Enter Order Quantity: "))
+                    order_details.append((product_id, order_quantity))
+
+                updated_inventory, errors = process_order(inventory, order_details)
+                if errors:
+                    print("Some items could not be processed:")
+                    for error in errors:
+                        print(error)
+                else:
+                    inventory = updated_inventory
+                    total_cost = sum(inventory[product_id]["price"] * quantity for product_id, quantity in order_details)
+                    sales_records.append({"order_details": order_details, "total_price": total_cost})
+                    print(f"Total cost of the order: {total_cost}")
+                    print("Order processed successfully!")
+
+            elif operation == 2:
+                product_id = int(input("Enter Product ID: "))
+                is_available = check_product_availability(inventory, product_id, 1)
+                print(f"Product is {'available' if is_available else 'not available'}.")
+
+            else:
+                print("Invalid choice. Try again.")
+
+        elif choice == 3:
             threshold = int(input("Enter Low Stock Threshold: "))
             report = generate_low_stock_report(inventory, threshold)
+            print(f"Low Stock Items (Threshold: {threshold}):")
+            print("Product ID | Name | Quantity")
             for product_id, details in report.items():
-                print(product_id, details)
+                print(f"{product_id} | {details['name']} | {details['quantity']}")
 
-        elif choice == "5":
-            product_id = int(input("Enter Product ID: "))
-            order_quantity = int(input("Enter Order Quantity: "))
-            total_cost, inventory = process_order(inventory, product_id, order_quantity)
-            print(f"Total cost: {total_cost}")
+        elif choice == 4:
+            print("\n1. Generate Low Stock Report")
+            print("2. Generate Total Sales Report")
+            print("3. Generate Inventory Value Report")
 
-        elif choice == "6":
-            db_manager.close()
+            operation = int(input("\nChoose an option: "))
+
+            if operation == 1:
+                threshold = int(input("Enter Low Stock Threshold: "))
+                report = generate_low_stock_report(inventory, threshold)
+                print("Low Stock Items:")
+                print("Product ID | Name | Quantity")
+                for product_id, details in report.items():
+                    print(f"{product_id} | {details['name']} | {details['quantity']}")
+
+            elif operation == 2:
+                total_sales = calculate_total_sales(sales_records)
+                print(f"Total Sales: {total_sales}")
+
+            elif operation == 3:
+                total_value = calculate_total_inventory_value(inventory)
+                print(f"Total Inventory Value: {total_value}")
+
+            else:
+                print("Invalid choice. Try again.")
+
+        elif choice == 5:
+            print("Thanks For Using Our Stock Management System <3")
             break
 
         else:
             print("Invalid choice. Try again.")
+
 
 if __name__ == "__main__":
     main()

@@ -60,7 +60,6 @@ class Inventory:
         errors = []
 
         for product_id, order_quantity in order_details:
-            # Check if the product exists in the database
             query = f"SELECT price, quantity FROM Products WHERE product_id = {product_id}"
             result = self.db_manager.fetch_all(query)
             
@@ -70,21 +69,17 @@ class Inventory:
             
             price, quantity = result[0]
             
-            # Check stock availability
             if quantity < order_quantity:
                 errors.append(f"Insufficient stock for Product ID {product_id}. Available: {quantity}.")
                 continue
             
-            # Calculate total cost for this product
             item_cost = price * order_quantity
             total_cost += item_cost
 
-            # Update the inventory in the database
             new_quantity = quantity - order_quantity
             update_query = f"UPDATE Products SET quantity = {new_quantity} WHERE product_id = {product_id}"
             self.db_manager.execute_query(update_query)
 
-            # Add the order to the Orders table
             insert_query = f"""
                 INSERT INTO Orders (product_id, quantity, total_price)
                 VALUES ({product_id}, {order_quantity}, {item_cost})

@@ -1,64 +1,57 @@
-# Implements the functional approach with immutable data and recursive transformations.
-from db_manager import db_config
+from functools import reduce
 
-class stock_management_functional:
-    
-    def initialize_db():
-        conn = connect_db()
-        cursor = conn.cursor()
-        cursor.execute("""
-        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Products' AND xtype='U')
-        CREATE TABLE Products (
-            id INT PRIMARY KEY,
-            name NVARCHAR(50),
-            price FLOAT,
-            quantity INT
+def add_product(inventory, product_id, name, price, quantity):
+    new_product = {"name": name, "price": price, "quantity": quantity}
+    return {**inventory, product_id: new_product}
+
+def update_product(inventory, product_id, name=None, price=None, quantity=None):
+    if product_id not in inventory:
+        return inventory
+    updated_inventory = {
+        product_id: {
+            "name": name or inventory[product_id]["name"],
+            "price": price if price is not None else inventory[product_id]["price"],
+            "quantity": quantity if quantity is not None else inventory[product_id]["quantity"]
+        }
+    }
+    return {**inventory, **updated_inventory}
+
+def delete_product(inventory, product_id):
+    return {key: value for key, value in inventory.items() if key != product_id}
+
+def check_product_availability(inventory, product_id, required_quantity):
+    product = inventory.get(product_id)
+    return product is not None and product["quantity"] >= required_quantity
+
+def generate_low_stock_report(inventory, threshold):
+    return {product_id: details for product_id, details in inventory.items() if details["quantity"] < threshold}
+
+def process_order(inventory, order_details):
+    def process_item(inventory, product_id, order_quantity):
+        if product_id not in inventory:
+            return inventory, f"Product ID {product_id} does not exist"
+        if inventory[product_id]["quantity"] < order_quantity:
+            return inventory, f"Insufficient stock for Product ID {product_id}"
+        
+        updated_inventory = update_product(
+            inventory, product_id, quantity=inventory[product_id]["quantity"] - order_quantity
         )
-        """)
-        conn.commit()
-        conn.close()
+        return updated_inventory, None
 
-    def add_product(products, product):
-        if not products:
-            return [product]
-        if products[0]['id'] == product['id']:
-            print("Product already exists!")
-            return products
-        return [products[0]] + add_product(products[1:], product)
+    errors = []
+    updated_inventory = inventory
+    for product_id, order_quantity in order_details:
+        updated_inventory, error = process_item(updated_inventory, product_id, order_quantity)
+        if error:
+            errors.append(error)
 
-    def update_stock(products, product_id, quantity_change):
-        if not products:
-            return []
-        product = products[0]
-        if product['id'] == product_id:
-            updated_product = {**product, 'quantity': product['quantity'] + quantity_change}
-            return [updated_product] + products[1:]
-        return [product] + update_stock(products[1:], product_id, quantity_change)
+    return updated_inventory, errors
 
-    def process_order(products, product_id, order_quantity):
-        if not products:
-            print("Product not found!")
-            return products, 0
-        product = products[0]
-        if product['id'] == product_id:
-            if product['quantity'] < order_quantity:
-                print("Insufficient stock!")
-                return products, 0
-            updated_product = {**product, 'quantity': product['quantity'] - order_quantity}
-            return [updated_product] + products[1:], product['price'] * order_quantity
-        updated_products, total_cost = process_order(products[1:], product_id, order_quantity)
-        return [product] + updated_products, total_cost
+def calculate_total_inventory_value(inventory):
+    return reduce(lambda total, item: total + (item["price"] * item["quantity"]), inventory.values(), 0)
 
-    def generate_low_stock_report(products, threshold):
-        if not products:
-            return []
-        product = products[0]
-        if product['quantity'] < threshold:
-            return [product] + generate_low_stock_report(products[1:], threshold)
-        return generate_low_stock_report(products[1:], threshold)
+def calculate_total_sales(sales_records):
+    return reduce(lambda total, sale: total + sale["total_price"], sales_records, 0)
 
-    def generate_inventory_value(products):
-        if not products:
-            return 0
-        product = products[0]
-        return product['price'] * product['quantity'] + generate_inventory_value(products[1:])
+def set_threshold(thresholds, product_id, threshold):
+    return {**thresholds, product_id: threshold}
