@@ -1,74 +1,94 @@
-# Implements the imperative approach with mutable global state and step-by-step logic.
-from config import db_config
-class stock_management_imperative:
+class Product:
+    def __init__(self, name, price, quantity):
+        self.name = name
+        self.price = price
+        self.quantity = quantity
+
+class Inventory:
+    def __init__(self, db_manager):
+        self.db_manager = db_manager
+
+    def add_product(self, product):
+        query = f"""
+        INSERT INTO Products (name, price, quantity)
+        VALUES ('{product.name}', {product.price}, {product.quantity})
+        """
+        self.db_manager.execute_query(query)
+
+    def update_product(self, product_id, name=None, price=None, quantity=None):
+        updates = []
+        if name:
+            updates.append(f"name = '{name}'")
+        if price is not None:
+            updates.append(f"price = {price}")
+        if quantity is not None:
+            updates.append(f"quantity = {quantity}")
+        update_query = ", ".join(updates)
+        query = f"UPDATE Products SET {update_query} WHERE product_id = {product_id}"
+        self.db_manager.execute_query(query)
+
+    def delete_product(self, product_name):
+        query = f"DELETE FROM Products WHERE name = '{product_name}'"
+        self.db_manager.execute_query(query)
         
-    def initialize_db():
-        conn = connect_db()
-        cursor = conn.cursor()
-        cursor.execute("""
-        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Products' AND xtype='U')
-        CREATE TABLE Products (
-            id INT PRIMARY KEY,
-            name NVARCHAR(50),
-            price FLOAT,
-            quantity INT
-        )
-        """)
-        conn.commit()
-        conn.close()
-
-    def add_product(product_id, name, price, quantity):
-        conn = connect_to_db()
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO Products (id, name, price, quantity) VALUES (?, ?, ?, ?)", 
-                    (product_id, name, price, quantity))
-        conn.commit()
-        conn.close()
-
-    def update_stock(product_id, quantity_change):
-        conn = connect_to_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT quantity FROM Products WHERE id = ?", (product_id,))
-        result = cursor.fetchone()
+    def check_product_availability(self, product_name):
+        query = f"SELECT price, quantity FROM Products WHERE name = '{product_name}'"
+        result = self.db_manager.fetch_all(query)
         if not result:
-            print("Product not found!")
-            return
-        new_quantity = result[0] + quantity_change
-        cursor.execute("UPDATE Products SET quantity = ? WHERE id = ?", (new_quantity, product_id))
-        conn.commit()
-        conn.close()
+            print("Product Not Found!") 
+        else :
+            print("Product Available") 
+        
+    def generate_low_stock_items_report(self):
+        query = f"SELECT product_id,name,quantity FROM Products WHERE quantity < threshold"
+        return self.db_manager.fetch_all(query)
+    
+    def update_threshold(self, threshold):
+        query = f"UPDATE Products SET threshold = {threshold}"
+        return self.db_manager.execute_query(query)
+    
+    def calculate_total_sales(self):
+        query = f"SELECT SUM(total_price) from orders"
+        return self.db_manager.fetch_all(query)
+    
+    def calculate_total_inventory_value(self):
+        query = f"SELECT SUM(quantity) from Products"
+        return self.db_manager.fetch_all(query)
+    
+    def process_order(self, order_details):
+        total_cost = 0
+        errors = []
 
-    def process_order(product_id, order_quantity):
-        conn = connect_to_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT price, quantity FROM Products WHERE id = ?", (product_id,))
-        result = cursor.fetchone()
-        if not result:
-            print("Product not found!")
-            return
-        price, quantity = result
-        if quantity < order_quantity:
-            print("Insufficient stock!")
-            return
-        total_cost = price * order_quantity
-        new_quantity = quantity - order_quantity
-        cursor.execute("UPDATE Products SET quantity = ? WHERE id = ?", (new_quantity, product_id))
-        conn.commit()
-        conn.close()
-        print(f"Order processed. Total cost: {total_cost}")
+        for product_id, order_quantity in order_details:
+            # Check if the product exists in the database
+            query = f"SELECT price, quantity FROM Products WHERE product_id = {product_id}"
+            result = self.db_manager.fetch_all(query)
+            
+            if not result:
+                errors.append(f"Product ID {product_id} does not exist.")
+                continue
+            
+            price, quantity = result[0]
+            
+            # Check stock availability
+            if quantity < order_quantity:
+                errors.append(f"Insufficient stock for Product ID {product_id}. Available: {quantity}.")
+                continue
+            
+            # Calculate total cost for this product
+            item_cost = price * order_quantity
+            total_cost += item_cost
 
-    def generate_low_stock_report(threshold):
-        conn = connect_to_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Products WHERE quantity < ?", (threshold,))
-        result = cursor.fetchall()
-        conn.close()
-        return result
+            # Update the inventory in the database
+            new_quantity = quantity - order_quantity
+            update_query = f"UPDATE Products SET quantity = {new_quantity} WHERE product_id = {product_id}"
+            self.db_manager.execute_query(update_query)
 
-    def generate_inventory_value_report():
-        conn = connect_to_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT SUM(price * quantity) FROM Products")
-        result = cursor.fetchone()
-        conn.close()
-        return result[0] if result else 0
+            # Add the order to the Orders table
+            insert_query = f"""
+                INSERT INTO Orders (product_id, quantity, total_price)
+                VALUES ({product_id}, {order_quantity}, {item_cost})
+            """
+            self.db_manager.execute_query(insert_query)
+
+        return total_cost, errors

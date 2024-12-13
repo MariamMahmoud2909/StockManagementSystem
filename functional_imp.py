@@ -1,5 +1,5 @@
 # Implements the functional approach with immutable data and recursive transformations.
-from config import db_config
+from db_manager import db_config
 
 class stock_management_functional:
     
