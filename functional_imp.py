@@ -1,5 +1,20 @@
 from functools import reduce
+import json
 
+def load_data(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError:
+        return {}
+
+def save_data(file_path, data):
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
+        
+        
 def add_product(inventory, product_id, name, price, quantity):
     new_product = {"name": name, "price": price, "quantity": quantity}
     return {**inventory, product_id: new_product}
