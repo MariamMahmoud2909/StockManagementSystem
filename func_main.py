@@ -1,29 +1,9 @@
-
-from functional_imp import (
-    add_product,
-    update_product,
-    delete_product,
-    check_product_availability,
-    process_order,
-    generate_low_stock_report,
-    calculate_total_inventory_value,
-    calculate_total_sales,
-    load_data,
-    save_data,
-)
+from functional_imp import *
 
 def main():
     inventory = {}
     sales_records = []  
 
-    INVENTORY_FILE = 'inventory.json'
-    SALES_RECORDS_FILE = 'sales_records.json'
-    inventory = load_data(INVENTORY_FILE) 
-    sales_records = load_data(SALES_RECORDS_FILE)
-
-    if not isinstance(sales_records, list):
-        sales_records = []
-        
     print("STOCK MANAGEMENT SYSTEM")
 
     while True:
@@ -31,8 +11,7 @@ def main():
         print("2. Order Management")
         print("3. Inventory Tracking")
         print("4. Inventory Reports")
-        print("5. View All Products")
-        print("6. Exit")
+        print("5. Exit")
 
         choice = int(input("\nChoose an option: "))
 
@@ -49,7 +28,6 @@ def main():
                 quantity = int(input("Enter Product Quantity: "))
                 product_id = len(inventory) + 1  
                 inventory = add_product(inventory, product_id, name, price, quantity)
-                save_data(INVENTORY_FILE, inventory)  # Save changes to file
                 print("Product added successfully!")
 
             elif operation == 2:
@@ -64,13 +42,11 @@ def main():
                     price=float(price) if price else None,
                     quantity=int(quantity) if quantity else None,
                 )
-                save_data(INVENTORY_FILE, inventory)  # Save changes to file
                 print("Product updated successfully!")
 
             elif operation == 3:
                 product_id = int(input("Enter Product ID: "))
                 inventory = delete_product(inventory, product_id)
-                save_data(INVENTORY_FILE, inventory)  # Save changes to file
                 print("Product deleted successfully!")
 
             else:
@@ -101,8 +77,6 @@ def main():
                     inventory = updated_inventory
                     total_cost = sum(inventory[product_id]["price"] * quantity for product_id, quantity in order_details)
                     sales_records.append({"order_details": order_details, "total_price": total_cost})
-                    save_data(INVENTORY_FILE, inventory)  # Save inventory changes
-                    save_data(SALES_RECORDS_FILE, sales_records)  # Save sales records
                     print(f"Total cost of the order: {total_cost}")
                     print("Order processed successfully!")
 
@@ -149,13 +123,6 @@ def main():
                 print("Invalid choice. Try again.")
 
         elif choice == 5:
-            print("\nAll Products in Inventory:")
-            inventory = load_data(INVENTORY_FILE)  
-            for product_id, details in inventory.items():
-                print("Product {product_id}")
-                print(f"{product_id} | {details['name']} | {details['price']} | {details['quantity']}")
-
-        elif choice == 6:
             print("Thanks For Using Our Stock Management System <3")
             break
 
