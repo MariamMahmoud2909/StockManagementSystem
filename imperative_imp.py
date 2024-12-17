@@ -80,10 +80,7 @@ class Inventory:
             update_query = f"UPDATE Products SET quantity = {new_quantity} WHERE product_id = {product_id}"
             self.db_manager.execute_query(update_query)
 
-            insert_query = f"""
-                INSERT INTO Orders (product_id, quantity, total_price)
-                VALUES ({product_id}, {order_quantity}, {item_cost})
-            """
+            insert_query = f"""INSERT INTO Orders (product_id, quantity, total_price) VALUES ({product_id}, {order_quantity}, {item_cost})"""
             self.db_manager.execute_query(insert_query)
 
         return total_cost, errors

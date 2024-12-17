@@ -1,6 +1,6 @@
 from functools import reduce
 
-# Helper function for pattern matching
+# Helper function for pattern matching, Safely retrieves a value from a dictionary.
 def get_value(d, key):
     return d[key] if key in d else None
 
@@ -35,7 +35,7 @@ def custom_reduce(func, iterable, initializer):
 # Functional Inventory Management
 def add_product(inventory, product_id, name, price, quantity):
     new_product = {"name": name, "price": price, "quantity": quantity}
-    return custom_merge(inventory, {product_id: new_product})
+    return custom_merge(inventory, {product_id: new_product}) # Instead of modifying inventory, a new merged dictionary is returned.
 
 def update_product(inventory, product_id, name=None, price=None, quantity=None):
     if product_id not in inventory:
@@ -47,6 +47,7 @@ def update_product(inventory, product_id, name=None, price=None, quantity=None):
             if get_value(locals(), field_name) is None
             else get_value(locals(), field_name)
         )
+        # Pattern Matching: Fields are conditionally updated based on the values passed.
 
     updated_product = {
         product_id: {
