@@ -30,7 +30,12 @@ class DBManager:
         except pyodbc.Error as e:
             print(f"Error fetching data: {e}")
             return []
-
+        
+    def get_product_by_name(self, name):
+        query = "SELECT * FROM Products WHERE name = ?"
+        result = self.cursor.execute(query, (name,))
+        return result.fetchone()  # Fetch the first matching product
+    
     def close(self):
         try:
             self.cursor.close()
